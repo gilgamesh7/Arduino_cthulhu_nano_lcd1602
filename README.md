@@ -7,6 +7,10 @@ Arduino project that displays  "ph'nglui mglw'nafh cthulhu r'lyeh wgah'nagl fhta
 1. Tools → Processor → ATmega328P (Old Bootloader)
 1. Tools → Port → select the USB port (on Mac it looks like /dev/cu.usbserial-*)
 
+## Pin map of DFPlayer
+https://dfimg.dfrobot.com/nobody/wiki/77048a25b85b6e29438244020e7237e1.png<img width="641" height="379" alt="image" src="https://github.com/user-attachments/assets/a8f8b74f-3eab-4c3a-9528-ec71ca894493" />
+
+
 ## Wiring
 
 1️⃣ Prepare the Mini SD Card
