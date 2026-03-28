@@ -68,6 +68,7 @@ No uppercase. No fancy names. The DFPlayer is traditional and strict.
 
 <br> ⚠️ Do NOT connect speaker to Nano.
 
+
 7️⃣ Connect the 4-Pin Toggle Switch
 <img width="830" height="483" alt="image" src="https://github.com/user-attachments/assets/4942c8a0-7b00-4167-83d2-02e69b95aaef" />
 
@@ -76,6 +77,39 @@ No uppercase. No fancy names. The DFPlayer is traditional and strict.
 - If Nano resets:
 - Add:
   - 470µF capacitor across DFPlayer VCC & GND
+
+HC-SR04 Pins: <br>
+  VCC  → 5V <br>
+  GND  → GND <br>
+  TRIG → D7 <br>
+  ECHO → D6 <br>
+
+                 +5V  -----------------------------+
+                                                   |
+                                                   |
+                                           +-------+------+
+                                           |              |
+                                      [HC-SR04]      [DFPlayer]
+                                           |              |
+        Arduino Nano                        |              |
+       -----------------                    |              |
+      |                 |                   |              |
+      |             D2  |------ Button -----+              |
+      |                 |                                  |
+      |             D10 |<----- DFPlayer TX                |
+      |             D11 |-----> DFPlayer RX                |
+      |                 |                                  |
+      |             A4  |------ SDA (LCD)                  |
+      |             A5  |------ SCL (LCD)                  |
+      |                 |                                  |
+      |             D7  |------ TRIG (HC-SR04)             |
+      |             D6  |<----- ECHO (HC-SR04)             |
+      |                 |                                  |
+      |             5V  |------ VCC (LCD, HC-SR04, DF)     |
+      |             GND |------ GND (ALL)                  |
+       -----------------
+
+
  
 
 
