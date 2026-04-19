@@ -78,7 +78,7 @@ No uppercase. No fancy names. The DFPlayer is traditional and strict.
 - Add:
   - 470µF capacitor across DFPlayer VCC & GND
 
-HC-SR04 Pins: <br>
+9️⃣ HC-SR04 Pins: <br>
   VCC  → 5V <br>
   GND  → GND <br>
   TRIG → D7 <br>
@@ -109,7 +109,14 @@ HC-SR04 Pins: <br>
       |             GND |------ GND (ALL)                  |
        -----------------
 
+🔟 91 inch SSD1306 OLED Display
 
+| OLED Pin | Connect To |
+|----------|-----------|
+| VCC      | 5V        |
+| GND      | GND       |
+| SDA      | A4        |
+| SCL      | A5        |
  
 
 
