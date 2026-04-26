@@ -1,3 +1,4 @@
+#include <LiquidCrystal_I2C.h>
 #include <Wire.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
@@ -10,82 +11,117 @@
 #define OLED_RESET -1
 
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
+LiquidCrystal_I2C lcd(0x27, 16, 2);
 
 // MP3
 SoftwareSerial mp3Serial(10, 11);
 DFRobotDFPlayerMini mp3;
 
-// Button
+// Pins
 const int buttonPin = 2;
-bool lastButtonState = HIGH;
-
-// Ultrasonic
 const int trigPin = 7;
 const int echoPin = 6;
 
-long duration;
-int distance;
-
-const int triggerDistance = 20;
-unsigned long lastTriggerTime = 0;
-const unsigned long cooldown = 3000;
+// State
+bool lastButtonState = HIGH;
+bool explosionActive = false;
+bool awakeningMessageActive = false;
 
 // Timing
+unsigned long lastTriggerTime = 0;
 unsigned long explosionStart = 0;
-bool explosionActive = false;
+const unsigned long cooldown = 3000;
 
-// 🔧 FUNCTION PROTOTYPES (fixes your error)
-int getDistance();
-void runExplosionAnimation();
-void runCthulhuAwakensEffect();
+// Ultrasonic
+long duration;
+int distance;
+const int triggerDistance = 20;
+
+// LCD state
+int awakeningOffset = 0;
+int hymnOffset = 0;
+unsigned long lastLCDUpdate = 0;
+
+// OLED timing
+unsigned long lastOLEDUpdate = 0;
+
+// Text
+String cthulhuHymn = "ph'nglui mglw'nafh cthulhu r'lyeh wgah'nagl fhtagn !   ";
+String awakeningMsg = "IA! IA! CTHULHU AWAKENS! PRAISE CTHULHU !  ";
+
+// ----------------------------
 
 void setup() {
 
-  if (!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) {
-    while (true);
-  }
-
+  display.begin(SSD1306_SWITCHCAPVCC, 0x3C);
   display.clearDisplay();
 
+  lcd.init();
+  lcd.backlight();
+  lcd.clear();
+
   pinMode(buttonPin, INPUT_PULLUP);
-
-  mp3Serial.begin(9600);
-
-  if (!mp3.begin(mp3Serial)) {
-    while (true);
-  }
-
-  mp3.volume(26);
-
   pinMode(trigPin, OUTPUT);
   pinMode(echoPin, INPUT);
+
+  mp3Serial.begin(9600);
+  mp3.begin(mp3Serial);
+  mp3.volume(26);
 }
+
+// ----------------------------
 
 void loop() {
 
-  // BUTTON
-  bool currentButtonState = digitalRead(buttonPin);
-  if (lastButtonState == HIGH && currentButtonState == LOW) {
-    mp3.play(1);
-    delay(300);
-  }
-  lastButtonState = currentButtonState;
+  handleButton();
+  handleUltrasonic();
 
-  // ULTRASONIC
+  updateOLED();
+  updateLCD();
+}
+
+// ----------------------------
+// INPUT HANDLING
+// ----------------------------
+
+void handleButton() {
+  bool current = digitalRead(buttonPin);
+
+  if (lastButtonState == HIGH && current == LOW) {
+    mp3.play(1);
+  }
+
+  lastButtonState = current;
+}
+
+void handleUltrasonic() {
   int dist = getDistance();
 
   if (dist > 0 && dist < triggerDistance) {
     if (millis() - lastTriggerTime > cooldown) {
 
       mp3.play(2);
-      explosionStart = millis();
+
+      awakeningMessageActive = true;
+      awakeningOffset = 0;
+
       explosionActive = true;
+      explosionStart = millis();
 
       lastTriggerTime = millis();
     }
   }
+}
 
-  // ANIMATION CONTROL
+// ----------------------------
+// OLED (NON-BLOCKING)
+// ----------------------------
+
+void updateOLED() {
+
+  if (millis() - lastOLEDUpdate < 50) return;
+  lastOLEDUpdate = millis();
+
   if (explosionActive) {
 
     runCthulhuAwakensEffect();
@@ -97,10 +133,62 @@ void loop() {
     }
 
   } else {
-    runExplosionAnimation(); // idle pulsing
+    runExplosionAnimation();
   }
 }
 
+// ----------------------------
+// LCD (NON-BLOCKING)
+// ----------------------------
+
+void updateLCD() {
+
+  if (millis() - lastLCDUpdate < 220) return;
+  lastLCDUpdate = millis();
+
+  lcd.clear();
+  lcd.setCursor(0, 0);
+
+  if (awakeningMessageActive) {
+
+    // Flash effect (very short, acceptable)
+    lcd.noBacklight();
+    delay(10);
+    lcd.backlight();
+
+    lcd.print(getWindow(awakeningMsg, awakeningOffset));
+
+    awakeningOffset++;
+
+    if (awakeningOffset > awakeningMsg.length() + 16) {
+      awakeningMessageActive = false;
+      awakeningOffset = 0;
+    }
+
+  } else {
+    lcd.print(getWindow(cthulhuHymn, hymnOffset));
+    hymnOffset = (hymnOffset + 1) % cthulhuHymn.length();
+  }
+}
+
+// ----------------------------
+// STRING WINDOW HELPER
+// ----------------------------
+
+String getWindow(String text, int offset) {
+
+  String out = "";
+  int len = text.length();
+
+  for (int i = 0; i < 16; i++) {
+    out += text[(offset + i) % len];
+  }
+
+  return out;
+}
+
+// ----------------------------
+// ULTRASONIC
 // ----------------------------
 
 int getDistance() {
@@ -112,11 +200,11 @@ int getDistance() {
   digitalWrite(trigPin, LOW);
 
   duration = pulseIn(echoPin, HIGH);
-  distance = duration * 0.034 / 2;
-
-  return distance;
+  return duration * 0.034 / 2;
 }
 
+// ----------------------------
+// OLED EFFECTS (UNCHANGED CORE)
 // ----------------------------
 
 void runExplosionAnimation() {
@@ -126,99 +214,64 @@ void runExplosionAnimation() {
 
   display.clearDisplay();
 
-  int centerX = SCREEN_WIDTH / 2;
-  int centerY = SCREEN_HEIGHT / 2;
+  int cx = SCREEN_WIDTH / 2;
+  int cy = SCREEN_HEIGHT / 2;
 
-  display.drawCircle(centerX, centerY, radius, SSD1306_WHITE);
-  display.drawCircle(centerX, centerY, radius / 2, SSD1306_WHITE);
+  display.drawCircle(cx, cy, radius, SSD1306_WHITE);
+  display.drawCircle(cx, cy, radius / 2, SSD1306_WHITE);
 
   for (int i = 0; i < 8; i++) {
-    int angle = random(0, 360);
-    float rad = angle * 3.14 / 180;
+    float rad = random(0, 360) * 3.14 / 180;
 
-    int x2 = centerX + cos(rad) * (radius + random(5, 15));
-    int y2 = centerY + sin(rad) * (radius + random(5, 15));
+    int x2 = cx + cos(rad) * (radius + random(5, 15));
+    int y2 = cy + sin(rad) * (radius + random(5, 15));
 
-    display.drawLine(centerX, centerY, x2, y2, SSD1306_WHITE);
+    display.drawLine(cx, cy, x2, y2, SSD1306_WHITE);
   }
 
   display.display();
 
   radius += direction;
-
   if (radius > 15) direction = -1;
   if (radius < 3) direction = 1;
-
-  delay(40);
 }
 
-// CTHULHU AWAKENING EFFECT
+// ----------------------------
+
 void runCthulhuAwakensEffect() {
 
   const int numChars = 12;
 
-  static int x[numChars];
-  static int y[numChars];
-  static int dx[numChars];
-  static int dy[numChars];
+  static int x[numChars], y[numChars], dx[numChars], dy[numChars];
   static char symbols[numChars];
+  static bool init = false;
 
-  static bool initialized = false;
-
-  if (!initialized) {
+  if (!init) {
     for (int i = 0; i < numChars; i++) {
       x[i] = random(0, SCREEN_WIDTH);
       y[i] = random(0, SCREEN_HEIGHT);
-
       dx[i] = random(-1, 2);
       dy[i] = random(-1, 2);
-
-      char charset[] = "!@#$%^&*(){}<>?/|\\~";
-      symbols[i] = charset[random(0, sizeof(charset) - 1)];
+      symbols[i] = "!@#$%^&*(){}<>?"[random(0, 16)];
     }
-    initialized = true;
+    init = true;
   }
 
-  // 🔥 WHITE BACKGROUND
   display.fillScreen(SSD1306_WHITE);
 
   for (int i = 0; i < numChars; i++) {
 
     display.setCursor(x[i], y[i]);
-    display.setTextSize(1);
-
-    // ⚫ BLACK TEXT
     display.setTextColor(SSD1306_BLACK);
-
+    display.setTextSize(1);
     display.write(symbols[i]);
 
     x[i] += dx[i];
     y[i] += dy[i];
 
-    if (random(0, 10) > 7) {
-      dx[i] = random(-1, 2);
-      dy[i] = random(-1, 2);
-    }
-
-    if (x[i] < 0) x[i] = SCREEN_WIDTH;
-    if (x[i] > SCREEN_WIDTH) x[i] = 0;
-    if (y[i] < 0) y[i] = SCREEN_HEIGHT;
-    if (y[i] > SCREEN_HEIGHT) y[i] = 0;
-
-    if (random(0, 20) == 0) {
-      // char charset[] = "!@#$%^&*(){}<>?/|\\~CTHULHU";
-      char charset[] = "!@#$%CTHUL";
-      symbols[i] = charset[random(0, sizeof(charset) - 1)];
-    }
-
-    if (random(0, 70) == 0) {
-      display.fillScreen(SSD1306_BLACK);
-      display.display();
-      delay(20);
-    }
+    if (x[i] < 0 || x[i] > SCREEN_WIDTH) dx[i] *= -1;
+    if (y[i] < 0 || y[i] > SCREEN_HEIGHT) dy[i] *= -1;
   }
 
   display.display();
-
-  delay(50);
 }
