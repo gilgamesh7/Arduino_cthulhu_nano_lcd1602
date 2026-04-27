@@ -117,7 +117,14 @@ No uppercase. No fancy names. The DFPlayer is traditional and strict.
 | GND      | GND       |
 | SDA      | A4        |
 | SCL      | A5        |
- 
+
+ ## 🧩 Pin Mapping
+
+| ST0050 Pin        | Connect To | Notes                     |
+|-------------------|------------|---------------------------|
+| VCC               | 5V         | Power supply              |
+| GND               | GND        | Common ground             |
+| DO (Digital Out)  | D4         | This is your `st0050Pin`  |
 
 
 
