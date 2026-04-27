@@ -45,6 +45,23 @@ unsigned long lastLCDUpdate = 0;
 // OLED timing
 unsigned long lastOLEDUpdate = 0;
 
+// ST0050 IR Obstacle sensor - D4
+const int st0050Pin = 4;
+bool st0050LastState = HIGH;
+
+// ✅ NEW: cooldown for ST0050
+const unsigned long stCooldown = 3000;
+unsigned long lastSTTrigger = 0;
+
+// Flashing effect state (for 0003.mp3)
+bool stEffectActive = false;
+unsigned long stEffectStart = 0;
+unsigned long lastFlashToggle = 0;
+bool flashState = true;
+
+const unsigned long stEffectDuration = 16000;
+const unsigned long flashInterval = 1000;
+
 // Text
 String cthulhuHymn = "ph'nglui mglw'nafh cthulhu r'lyeh wgah'nagl fhtagn !   ";
 String awakeningMsg = "IA! IA! CTHULHU AWAKENS! PRAISE CTHULHU !  ";
@@ -63,10 +80,13 @@ void setup() {
   pinMode(buttonPin, INPUT_PULLUP);
   pinMode(trigPin, OUTPUT);
   pinMode(echoPin, INPUT);
+  pinMode(st0050Pin, INPUT);
 
   mp3Serial.begin(9600);
   mp3.begin(mp3Serial);
-  mp3.volume(26);
+  mp3.volume(22);
+
+  Serial.begin(9600);
 }
 
 // ----------------------------
@@ -75,6 +95,7 @@ void loop() {
 
   handleButton();
   handleUltrasonic();
+  handleST0050();
 
   updateOLED();
   updateLCD();
@@ -122,6 +143,24 @@ void updateOLED() {
   if (millis() - lastOLEDUpdate < 50) return;
   lastOLEDUpdate = millis();
 
+  if (stEffectActive) {
+
+    if (millis() - lastFlashToggle > flashInterval) {
+      flashState = !flashState;
+      lastFlashToggle = millis();
+    }
+
+    if (!flashState) {
+      display.clearDisplay();
+      display.display();
+      return;
+    }
+
+    if (millis() - stEffectStart > stEffectDuration) {
+      stEffectActive = false;
+    }
+  }
+
   if (explosionActive) {
 
     runCthulhuAwakensEffect();
@@ -146,12 +185,31 @@ void updateLCD() {
   if (millis() - lastLCDUpdate < 220) return;
   lastLCDUpdate = millis();
 
+  if (stEffectActive) {
+
+    if (millis() - lastFlashToggle > flashInterval) {
+      flashState = !flashState;
+      lastFlashToggle = millis();
+    }
+
+    if (!flashState) {
+      lcd.noBacklight();
+      return;
+    } else {
+      lcd.backlight();
+    }
+
+    if (millis() - stEffectStart > stEffectDuration) {
+      stEffectActive = false;
+      lcd.backlight();
+    }
+  }
+
   lcd.clear();
   lcd.setCursor(0, 0);
 
   if (awakeningMessageActive) {
 
-    // Flash effect (very short, acceptable)
     lcd.noBacklight();
     delay(10);
     lcd.backlight();
@@ -172,8 +230,6 @@ void updateLCD() {
 }
 
 // ----------------------------
-// STRING WINDOW HELPER
-// ----------------------------
 
 String getWindow(String text, int offset) {
 
@@ -188,8 +244,6 @@ String getWindow(String text, int offset) {
 }
 
 // ----------------------------
-// ULTRASONIC
-// ----------------------------
 
 int getDistance() {
   digitalWrite(trigPin, LOW);
@@ -203,8 +257,6 @@ int getDistance() {
   return duration * 0.034 / 2;
 }
 
-// ----------------------------
-// OLED EFFECTS (UNCHANGED CORE)
 // ----------------------------
 
 void runExplosionAnimation() {
@@ -274,4 +326,39 @@ void runCthulhuAwakensEffect() {
   }
 
   display.display();
+}
+
+// ----------------------------
+
+void handleST0050() {
+
+  bool current = digitalRead(st0050Pin);
+
+  Serial.print("ST0050 state: ");
+  Serial.println(current);
+
+  if (st0050LastState == HIGH && current == LOW) {
+
+    // ✅ cooldown check
+    if (millis() - lastSTTrigger > stCooldown) {
+
+      mp3.play(3);
+      lastSTTrigger = millis();
+
+      stEffectActive = true;
+      stEffectStart = millis();
+      lastFlashToggle = millis();
+      flashState = true;
+
+      awakeningMessageActive = true;
+      awakeningOffset = 0;
+
+      explosionActive = true;
+      explosionStart = millis();
+
+      lastTriggerTime = millis();
+    }
+  }
+
+  st0050LastState = current;
 }
