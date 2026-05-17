@@ -127,6 +127,24 @@ No uppercase. No fancy names. The DFPlayer is traditional and strict.
 | DO (Digital Out)  | D4         | This is your `st0050Pin`  |
 
 
+⏸️ WS2812B Blood Ring (24 Pixel NeoPixel Ring)
+
+<img width="572" height="589" alt="image" src="https://github.com/user-attachments/assets/1e674505-907f-4e1e-b43c-1d289729b24d" />
+<br><br>
+[WS2812B Technical Specifications](https://media.jaycar.co.nz/product/resources/XC4385_manualMain_93994.pdf)
+<br><br>
+
+## 🧩 Pin Mapping
+| WS2812B Pin | Connect To |
+|-------------|------------|
+| DIN         | D5 through 330Ω resistor |
+| 5V          | 5V |
+| GND         | GND |
+
+
+
+
+
 
 
 
