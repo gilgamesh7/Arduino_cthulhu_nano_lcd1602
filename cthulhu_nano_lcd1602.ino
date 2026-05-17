@@ -4,6 +4,7 @@
 #include <Adafruit_SSD1306.h>
 #include <SoftwareSerial.h>
 #include <DFRobotDFPlayerMini.h>
+#include <Adafruit_NeoPixel.h>
 
 // OLED config
 #define SCREEN_WIDTH 128
@@ -49,7 +50,7 @@ unsigned long lastOLEDUpdate = 0;
 const int st0050Pin = 4;
 bool st0050LastState = HIGH;
 
-// ✅ NEW: cooldown for ST0050
+// cooldown for ST0050
 const unsigned long stCooldown = 3000;
 unsigned long lastSTTrigger = 0;
 
@@ -61,6 +62,15 @@ bool flashState = true;
 
 const unsigned long stEffectDuration = 16000;
 const unsigned long flashInterval = 1000;
+
+// WS2812B Ring
+#define LED_PIN 5
+#define NUM_PIXELS 24
+
+Adafruit_NeoPixel pixels(NUM_PIXELS, LED_PIN, NEO_GRB + NEO_KHZ800);
+
+// WS2812B breathing timing
+unsigned long lastLEDBreathUpdate = 0;
 
 // Text
 String cthulhuHymn = "ph'nglui mglw'nafh cthulhu r'lyeh wgah'nagl fhtagn !   ";
@@ -84,7 +94,10 @@ void setup() {
 
   mp3Serial.begin(9600);
   mp3.begin(mp3Serial);
-  mp3.volume(22);
+  mp3.volume(24);
+
+  pixels.begin();
+  pixels.show();
 
   Serial.begin(9600);
 }
@@ -99,6 +112,8 @@ void loop() {
 
   updateOLED();
   updateLCD();
+
+  updateBloodBreathing();
 }
 
 // ----------------------------
@@ -326,6 +341,40 @@ void runCthulhuAwakensEffect() {
   }
 
   display.display();
+}
+
+// ----------------------------
+// WS2812B BLOOD BREATHING EFFECT
+// ----------------------------
+
+void updateBloodBreathing() {
+
+  // 5 second full breathing cycle
+  float cycleTime = 10000.0;
+
+  // Current position in cycle
+  float t = millis() % (int)cycleTime;
+
+  // Smooth sine wave breathing
+  float breath = (sin((t / cycleTime) * TWO_PI) + 1.0) / 2.0;
+
+  // Keep it dark and ominous
+  int red = 15 + (breath * 140);
+
+  // During awakening events:
+  // increase intensity slightly
+  if (explosionActive || stEffectActive) {
+    red = 40 + (breath * 215);
+  }
+
+  // Blood red only
+  uint32_t color = pixels.Color(red, 0, 0);
+
+  for (int i = 0; i < NUM_PIXELS; i++) {
+    pixels.setPixelColor(i, color);
+  }
+
+  pixels.show();
 }
 
 // ----------------------------
